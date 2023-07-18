@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: development
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysqldb:/var/lib/mysql:rw
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+  api:
+    build:
+      context: node
+    entrypoint: dockerize -wait tcp://db:3306 -timeout 20s npm run dev
+    depends_on:
+      - db
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - MYSQL_HOST=db
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=development
+    volumes:
+      - ./node:/usr/src/app:rw
+    networks:
+      - app-network
+
+  app:
+    build:
+      context: nginx
+    restart: always
+    depends_on:
+      - api
+    networks:
+      - app-network
+    ports:
+      - "8080:80"
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysqldb:
